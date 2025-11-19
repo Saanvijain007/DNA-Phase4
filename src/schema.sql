@@ -1,5 +1,3 @@
-
-
 DROP DATABASE IF EXISTS pandora_chronicles_db;
 CREATE DATABASE pandora_chronicles_db;
 USE pandora_chronicles_db;
@@ -9,16 +7,19 @@ CREATE TABLE Soul (
     State VARCHAR(50) NOT NULL
 );
 
-CREATE TABLE Clan (
-    Clan_ID INT PRIMARY KEY,
-    Clan_Name VARCHAR(100) NOT NULL
-);
-
-
 CREATE TABLE Alliance (
     Alliance_ID INT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Objective TEXT
+);
+
+CREATE TABLE Clan (
+    Clan_ID INT PRIMARY KEY,
+    Clan_Name VARCHAR(100) NOT NULL,
+    Alliance_ID INT,
+    FOREIGN KEY (Alliance_ID) REFERENCES Alliance(Alliance_ID)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
 );
 
 CREATE TABLE Ecosystem (
@@ -28,9 +29,6 @@ CREATE TABLE Ecosystem (
     Dominant_Species VARCHAR(100)
 );
 
--- =========================================================
--- 5. COMPANY
--- =========================================================
 CREATE TABLE Company (
     Company_ID INT PRIMARY KEY,
     Name VARCHAR(150) NOT NULL,
@@ -39,14 +37,11 @@ CREATE TABLE Company (
     Longitude DECIMAL(9,6)
 );
 
--- =========================================================
--- 6. HUMAN
--- =========================================================
 CREATE TABLE Human (
     Human_ID INT PRIMARY KEY,
     F_Name VARCHAR(100),
     L_Name VARCHAR(100),
-    Rank VARCHAR(50),
+    `Rank` VARCHAR(50),
     Weapon_Type VARCHAR(100),
     Soul_ID INT UNIQUE,
     Company_ID INT,
@@ -58,9 +53,6 @@ CREATE TABLE Human (
         ON UPDATE CASCADE
 );
 
--- =========================================================
--- 7. NA'VI
--- =========================================================
 CREATE TABLE Navi (
     Navi_ID INT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
@@ -75,9 +67,6 @@ CREATE TABLE Navi (
         ON UPDATE CASCADE
 );
 
--- =========================================================
--- 8. BONDED ANIMAL
--- =========================================================
 CREATE TABLE Bonded_Animal (
     Navi_ID INT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
@@ -109,8 +98,9 @@ CREATE TABLE Avatar (
 CREATE TABLE Partnership (
     Company_ID INT,
     Clan_ID INT,
-    Alliance_ID INT,
-    PRIMARY KEY (Company_ID, Clan_ID, Alliance_ID),
+    Alliance_ID INT NULL, -- Allow NULL for ON DELETE SET NULL
+    PRIMARY KEY (Company_ID, Clan_ID),
+    UNIQUE (Company_ID, Clan_ID, Alliance_ID),
     FOREIGN KEY (Company_ID) REFERENCES Company(Company_ID)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
