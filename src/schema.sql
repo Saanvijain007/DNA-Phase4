@@ -3,18 +3,19 @@ CREATE DATABASE pandora_chronicles_db;
 USE pandora_chronicles_db;
 
 CREATE TABLE Soul (
-    Soul_ID INT PRIMARY KEY,
-    State VARCHAR(50) NOT NULL
+    Soul_ID INT AUTO_INCREMENT PRIMARY KEY,
+    State VARCHAR(50) NOT NULL,
+    CHECK (State IN ('Alive', 'Deceased', 'Linked_to_Eywa'))
 );
 
 CREATE TABLE Alliance (
-    Alliance_ID INT PRIMARY KEY,
+    Alliance_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Objective TEXT
 );
 
 CREATE TABLE Clan (
-    Clan_ID INT PRIMARY KEY,
+    Clan_ID INT AUTO_INCREMENT PRIMARY KEY,
     Clan_Name VARCHAR(100) NOT NULL,
     Alliance_ID INT,
     FOREIGN KEY (Alliance_ID) REFERENCES Alliance(Alliance_ID)
@@ -23,30 +24,30 @@ CREATE TABLE Clan (
 );
 
 CREATE TABLE Ecosystem (
-    Eco_ID INT PRIMARY KEY,
+    Eco_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Biome_Type VARCHAR(100),
     Dominant_Species VARCHAR(100)
 );
 
 CREATE TABLE Company (
-    Company_ID INT PRIMARY KEY,
+    Company_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(150) NOT NULL,
-    Ethics_Rating DECIMAL(3,2),
+    Ethics_Rating DECIMAL(3,2) CHECK (Ethics_Rating BETWEEN 0.00 AND 10.00),
     Latitude DECIMAL(9,6),
     Longitude DECIMAL(9,6)
 );
 
 CREATE TABLE Human (
-    Human_ID INT PRIMARY KEY,
+    Human_ID INT AUTO_INCREMENT PRIMARY KEY,
     F_Name VARCHAR(100),
     L_Name VARCHAR(100),
     `Rank` VARCHAR(50),
     Weapon_Type VARCHAR(100),
-    Soul_ID INT UNIQUE,
+    Soul_ID INT UNIQUE NOT NULL,
     Company_ID INT,
     FOREIGN KEY (Soul_ID) REFERENCES Soul(Soul_ID)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
         ON UPDATE CASCADE,
     FOREIGN KEY (Company_ID) REFERENCES Company(Company_ID)
         ON DELETE SET NULL
@@ -54,13 +55,13 @@ CREATE TABLE Human (
 );
 
 CREATE TABLE Navi (
-    Navi_ID INT PRIMARY KEY,
+    Navi_ID INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Age INT,
-    Soul_ID INT UNIQUE,
+    Soul_ID INT UNIQUE NOT NULL,
     Clan_ID INT,
     FOREIGN KEY (Soul_ID) REFERENCES Soul(Soul_ID)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
         ON UPDATE CASCADE,
     FOREIGN KEY (Clan_ID) REFERENCES Clan(Clan_ID)
         ON DELETE SET NULL
@@ -84,6 +85,7 @@ CREATE TABLE Avatar (
     Link_Status VARCHAR(50),
     Total_Linked_Hours INT CHECK (Total_Linked_Hours >= 0),
     PRIMARY KEY (Human_ID, Navi_ID),
+    UNIQUE (Navi_ID),
     FOREIGN KEY (Human_ID) REFERENCES Human(Human_ID)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
@@ -98,9 +100,8 @@ CREATE TABLE Avatar (
 CREATE TABLE Partnership (
     Company_ID INT,
     Clan_ID INT,
-    Alliance_ID INT NULL, -- Allow NULL for ON DELETE SET NULL
+    Alliance_ID INT NULL,
     PRIMARY KEY (Company_ID, Clan_ID),
-    UNIQUE (Company_ID, Clan_ID, Alliance_ID),
     FOREIGN KEY (Company_ID) REFERENCES Company(Company_ID)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
@@ -116,7 +117,7 @@ CREATE TABLE Partnership (
 -- 11. WAR
 -- =========================================================
 CREATE TABLE War (
-    War_ID INT PRIMARY KEY,
+    War_ID INT AUTO_INCREMENT PRIMARY KEY,
     Casualties INT,
     Outcome VARCHAR(100),
     Attack_Alliance_ID INT,
@@ -149,9 +150,9 @@ CREATE TABLE Fights_In (
 -- 13. AETHERIUM SITE
 -- =========================================================
 CREATE TABLE Aetherium_Site (
-    Site_ID INT PRIMARY KEY,
+    Site_ID INT AUTO_INCREMENT PRIMARY KEY,
     Resource_Quantity INT,
-    Status VARCHAR(50),
+    Status VARCHAR(50) CHECK (Status IN ('Unclaimed', 'Claimed', 'Depleted')),
     Alliance_ID INT,
     Eco_ID INT,
     FOREIGN KEY (Alliance_ID) REFERENCES Alliance(Alliance_ID)
@@ -193,7 +194,7 @@ CREATE TABLE Ecosystem_Flora (
 -- 16. REPORT META
 -- =========================================================
 CREATE TABLE Report_Meta (
-    Report_ID INT PRIMARY KEY,
+    Report_ID INT AUTO_INCREMENT PRIMARY KEY,
     Timestamp DATETIME NOT NULL
 );
 
