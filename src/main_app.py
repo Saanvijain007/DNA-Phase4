@@ -450,7 +450,7 @@ def ecosystem_threat_analysis(conn):
 def create_human(conn):
     """
     WRITE 1: Create a new human character
-    SQL: INSERT into Human
+    SQL: INSERT into Human (with automatic Soul creation)
     """
     print_header("Create New Human Operative")
     
@@ -459,51 +459,42 @@ def create_human(conn):
         with conn.cursor() as cur:
             cur.execute("SELECT Company_ID, Name FROM Company ORDER BY Name")
             companies = cur.fetchall()
-            
-            # Show available souls (not assigned to humans)
-            cur.execute("""
-                SELECT s.Soul_ID, s.State 
-                FROM Soul s 
-                WHERE s.Soul_ID NOT IN (SELECT Soul_ID FROM Human WHERE Soul_ID IS NOT NULL)
-                ORDER BY s.Soul_ID
-            """)
-            available_souls = cur.fetchall()
         
         print("\nAvailable Companies:")
         for comp in companies:
             print(f"  {comp['Company_ID']}: {comp['Name']}")
-        
-        print("\nAvailable Souls:")
-        for soul in available_souls[:10]:  # Show first 10
-            print(f"  Soul {soul['Soul_ID']}: {soul['State']}")
         
         print("\n--- Enter Human Details ---")
         f_name = input("First Name: ").strip()
         l_name = input("Last Name: ").strip()
         rank = input("Rank (e.g., Colonel, Pilot, Engineer): ").strip()
         weapon = input("Weapon Type: ").strip()
-        soul_id = input("Soul ID: ").strip()
         company_id = input("Company ID: ").strip()
         
-        if not all([f_name, l_name, soul_id]):
-            print("First name, last name, and soul ID are required.")
+        if not all([f_name, l_name]):
+            print("First name and last name are required.")
             return
         
-        sql = """
-            INSERT INTO Human (F_Name, L_Name, `Rank`, Weapon_Type, Soul_ID, Company_ID)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        
+        # Create a new soul with "Alive" state automatically
         with conn.cursor() as cur:
+            cur.execute("INSERT INTO Soul (State) VALUES ('Alive')")
+            soul_id = cur.lastrowid
+            
+            # Insert the human with the new soul ID
+            sql = """
+                INSERT INTO Human (F_Name, L_Name, `Rank`, Weapon_Type, Soul_ID, Company_ID)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
             cur.execute(sql, (f_name, l_name, rank, weapon, soul_id, company_id or None))
         
         conn.commit()
         print(f"\n✓ Human operative '{f_name} {l_name}' created successfully!")
+        print(f"  Soul ID {soul_id} (State: Alive) automatically assigned.")
         
     except pymysql.IntegrityError as e:
         conn.rollback()
         print(f"✗ Data integrity error: {e}", file=sys.stderr)
-        print("  (Soul ID may already be assigned or Company ID invalid)")
+        print("  (Company ID may be invalid)")
     except pymysql.Error as e:
         conn.rollback()
         print(f"✗ Database error: {e}", file=sys.stderr)
@@ -515,7 +506,7 @@ def create_human(conn):
 def create_navi(conn):
     """
     WRITE 2: Create a new Na'vi character
-    SQL: INSERT into Navi
+    SQL: INSERT into Navi (with automatic Soul creation)
     """
     print_header("Create New Na'vi Character")
     
@@ -524,49 +515,40 @@ def create_navi(conn):
         with conn.cursor() as cur:
             cur.execute("SELECT Clan_ID, Clan_Name FROM Clan ORDER BY Clan_Name")
             clans = cur.fetchall()
-            
-            # Show available souls
-            cur.execute("""
-                SELECT s.Soul_ID, s.State 
-                FROM Soul s 
-                WHERE s.Soul_ID NOT IN (SELECT Soul_ID FROM Navi WHERE Soul_ID IS NOT NULL)
-                ORDER BY s.Soul_ID
-            """)
-            available_souls = cur.fetchall()
         
         print("\nAvailable Clans:")
         for clan in clans:
             print(f"  {clan['Clan_ID']}: {clan['Clan_Name']}")
         
-        print("\nAvailable Souls:")
-        for soul in available_souls[:10]:
-            print(f"  Soul {soul['Soul_ID']}: {soul['State']}")
-        
         print("\n--- Enter Na'vi Details ---")
         name = input("Name: ").strip()
         age = input("Age: ").strip()
-        soul_id = input("Soul ID: ").strip()
         clan_id = input("Clan ID: ").strip()
         
-        if not all([name, soul_id]):
-            print("Name and Soul ID are required.")
+        if not name:
+            print("Name is required.")
             return
         
-        sql = """
-            INSERT INTO Navi (Name, Age, Soul_ID, Clan_ID)
-            VALUES (%s, %s, %s, %s)
-        """
-        
+        # Create a new soul with "Alive" state automatically
         with conn.cursor() as cur:
+            cur.execute("INSERT INTO Soul (State) VALUES ('Alive')")
+            soul_id = cur.lastrowid
+            
+            # Insert the Na'vi with the new soul ID
+            sql = """
+                INSERT INTO Navi (Name, Age, Soul_ID, Clan_ID)
+                VALUES (%s, %s, %s, %s)
+            """
             cur.execute(sql, (name, age or None, soul_id, clan_id or None))
         
         conn.commit()
         print(f"\n✓ Na'vi '{name}' created successfully!")
+        print(f"  Soul ID {soul_id} (State: Alive) automatically assigned.")
         
     except pymysql.IntegrityError as e:
         conn.rollback()
         print(f"✗ Data integrity error: {e}", file=sys.stderr)
-        print("  (Soul ID may already be assigned or Clan ID invalid)")
+        print("  (Clan ID may be invalid)")
     except pymysql.Error as e:
         conn.rollback()
         print(f"✗ Database error: {e}", file=sys.stderr)
@@ -583,13 +565,16 @@ def create_avatar_link(conn):
     print_header("Form Avatar Link")
     
     try:
-        # Show available humans and na'vi
+        # Show only humans and na'vi without existing avatar links
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT h.Human_ID, CONCAT(h.F_Name, ' ', h.L_Name) as Name, c.Name as Company
+                SELECT h.Human_ID, CONCAT(h.F_Name, ' ', h.L_Name) as Name, 
+                       c.Name as Company
                 FROM Human h
                 LEFT JOIN Company c ON h.Company_ID = c.Company_ID
-                ORDER BY h.Human_ID
+                LEFT JOIN Avatar av ON h.Human_ID = av.Human_ID
+                WHERE av.Human_ID IS NULL
+                ORDER BY h.Human_ID DESC
             """)
             humans = cur.fetchall()
             
@@ -597,17 +582,29 @@ def create_avatar_link(conn):
                 SELECT n.Navi_ID, n.Name, cl.Clan_Name
                 FROM Navi n
                 LEFT JOIN Clan cl ON n.Clan_ID = cl.Clan_ID
-                ORDER BY n.Navi_ID
+                LEFT JOIN Avatar av ON n.Navi_ID = av.Navi_ID
+                WHERE av.Navi_ID IS NULL
+                ORDER BY n.Navi_ID DESC
             """)
             navis = cur.fetchall()
         
-        print("\nAvailable Humans:")
-        for h in humans[:10]:
-            print(f"  ID {h['Human_ID']}: {h['Name']} ({h['Company']})")
+        if not humans:
+            print("\n⚠ No available humans without avatar links.")
+            return
         
-        print("\nAvailable Na'vi:")
-        for n in navis[:10]:
-            print(f"  ID {n['Navi_ID']}: {n['Name']} ({n['Clan_Name']})")
+        if not navis:
+            print("\n⚠ No available Na'vi without avatar links.")
+            return
+        
+        print(f"\nAvailable Humans (Total: {len(humans)}):")
+        for h in humans:
+            company = h['Company'] or 'No Company'
+            print(f"  ID {h['Human_ID']}: {h['Name']} ({company})")
+        
+        print(f"\nAvailable Na'vi (Total: {len(navis)}):")
+        for n in navis:
+            clan = n['Clan_Name'] or 'No Clan'
+            print(f"  ID {n['Navi_ID']}: {n['Name']} ({clan})")
         
         human_id = input("\nEnter Human ID: ").strip()
         navi_id = input("Enter Na'vi ID: ").strip()
